@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+standings_cache.json
+daily_log.txt

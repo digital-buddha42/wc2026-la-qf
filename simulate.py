@@ -165,15 +165,24 @@ def pick_best_third(thirds: List[dict]) -> dict:
                                        t.get("sim_gf", t["gf"])))
 
 
-def run_simulation(standings: Dict[str, List[dict]]) -> tuple[Dict[str, float], Dict[tuple, float]]:
+def run_simulation(standings: Dict[str, List[dict]]) -> tuple[Dict[str, float], Dict[tuple, float], Dict[str, Dict[str, float]]]:
     """
     Run N_TRIALS simulations.
     Returns:
       - {team_name: probability_of_appearing_in_LA_QF}
       - {(team_a, team_b): probability_of_this_exact_matchup}  (teams sorted alphabetically)
+      - {stage_name: {team_name: probability_of_winning_that_stage}}
     """
     qf_counts: Dict[str, int] = defaultdict(int)
     matchup_counts: Dict[tuple, int] = defaultdict(int)
+    stage_counts: Dict[str, Dict[str, int]] = {
+        "R32-81 (SF, Jul 1)":   defaultdict(int),
+        "R32-82 (SEA, Jul 2)":  defaultdict(int),
+        "R32-83 (TOR, Jun 29)": defaultdict(int),
+        "R32-84 (LA, Jul 2)":   defaultdict(int),
+        "R16-94 (SEA, Jul 7)":  defaultdict(int),
+        "R16-93 (ARL, Jul 6)":  defaultdict(int),
+    }
 
     for _ in range(N_TRIALS):
         # 1. Simulate all group finishes
@@ -236,6 +245,11 @@ def run_simulation(standings: Dict[str, List[dict]]) -> tuple[Dict[str, float], 
         w_r32_81 = sim_r32(r16_b_node["r32_a"])
         w_r32_82 = sim_r32(r16_b_node["r32_b"])
 
+        if w_r32_81: stage_counts["R32-81 (SF, Jul 1)"][w_r32_81["team"]] += 1
+        if w_r32_82: stage_counts["R32-82 (SEA, Jul 2)"][w_r32_82["team"]] += 1
+        if w_r32_83: stage_counts["R32-83 (TOR, Jun 29)"][w_r32_83["team"]] += 1
+        if w_r32_84: stage_counts["R32-84 (LA, Jul 2)"][w_r32_84["team"]] += 1
+
         # R16 matches
         if w_r32_83 and w_r32_84:
             w_r16_93 = simulate_match(w_r32_83, w_r32_84)
@@ -246,6 +260,9 @@ def run_simulation(standings: Dict[str, List[dict]]) -> tuple[Dict[str, float], 
             w_r16_94 = simulate_match(w_r32_81, w_r32_82)
         else:
             w_r16_94 = w_r32_81 or w_r32_82
+
+        if w_r16_93: stage_counts["R16-93 (ARL, Jul 6)"][w_r16_93["team"]] += 1
+        if w_r16_94: stage_counts["R16-94 (SEA, Jul 7)"][w_r16_94["team"]] += 1
 
         # LA QF participants
         if w_r16_93:
@@ -263,4 +280,8 @@ def run_simulation(standings: Dict[str, List[dict]]) -> tuple[Dict[str, float], 
     matchup_probs = {pair: count / N_TRIALS for pair, count in sorted(
         matchup_counts.items(), key=lambda x: -x[1]
     )}
-    return probs, matchup_probs
+    stage_probs = {
+        stage: {team: cnt / N_TRIALS for team, cnt in sorted(counts.items(), key=lambda x: -x[1])}
+        for stage, counts in stage_counts.items()
+    }
+    return probs, matchup_probs, stage_probs

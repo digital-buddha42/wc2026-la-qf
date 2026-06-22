@@ -165,12 +165,15 @@ def pick_best_third(thirds: List[dict]) -> dict:
                                        t.get("sim_gf", t["gf"])))
 
 
-def run_simulation(standings: Dict[str, List[dict]]) -> Dict[str, float]:
+def run_simulation(standings: Dict[str, List[dict]]) -> tuple[Dict[str, float], Dict[tuple, float]]:
     """
     Run N_TRIALS simulations.
-    Returns {team_name: probability_of_appearing_in_LA_QF}
+    Returns:
+      - {team_name: probability_of_appearing_in_LA_QF}
+      - {(team_a, team_b): probability_of_this_exact_matchup}  (teams sorted alphabetically)
     """
     qf_counts: Dict[str, int] = defaultdict(int)
+    matchup_counts: Dict[tuple, int] = defaultdict(int)
 
     for _ in range(N_TRIALS):
         # 1. Simulate all group finishes
@@ -249,9 +252,15 @@ def run_simulation(standings: Dict[str, List[dict]]) -> Dict[str, float]:
             qf_counts[w_r16_93["team"]] += 1
         if w_r16_94:
             qf_counts[w_r16_94["team"]] += 1
+        if w_r16_93 and w_r16_94:
+            pair = tuple(sorted([w_r16_93["team"], w_r16_94["team"]]))
+            matchup_counts[pair] += 1
 
-    # Convert to probabilities (each trial produces 2 QF teams → 2*N total slots)
     total_slots = 2 * N_TRIALS
-    return {team: count / total_slots for team, count in sorted(
+    probs = {team: count / total_slots for team, count in sorted(
         qf_counts.items(), key=lambda x: -x[1]
     )}
+    matchup_probs = {pair: count / N_TRIALS for pair, count in sorted(
+        matchup_counts.items(), key=lambda x: -x[1]
+    )}
+    return probs, matchup_probs

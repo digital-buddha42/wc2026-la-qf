@@ -2,15 +2,16 @@
 Monte Carlo simulation of 2026 World Cup bracket path to the LA Quarterfinal.
 
 Approach:
-  1. Estimate each team's win probability per match using a simple Elo-style
-     rating derived from current group standings (pts, gd, gf).
-  2. Simulate the remaining group stage + third-place qualification + R32 + R16.
+  1. Estimate each team's win probability using a BLENDED rating:
+       - Pre-tournament Elo (captures true team quality: Argentina >> USA)
+       - Live tournament performance (pts, gd, gf) — grows in weight as games played
+     Blend: rating = elo_base * tournament_boost, where tournament_boost starts
+     near 1.0 and diverges as results come in.
+  2. Simulate remaining group stage + 3rd-place qualification + R32 + R16.
   3. Count how often each team appears in the LA QF across N trials.
 
 Win probability model (Bradley-Terry):
   P(A beats B) = rating_A / (rating_A + rating_B)
-
-Rating = exp(0.1 * pts + 0.02 * gd + 0.01 * gf)  — simple but sensible.
 """
 
 import math
@@ -22,12 +23,89 @@ from bracket import BRACKET, THIRD_PLACE_POOLS, ALL_GROUPS
 
 N_TRIALS = 50_000
 
+# Pre-tournament Elo ratings (eloratings.net, ~June 2026).
+# Unlisted teams get ELO_DEFAULT. Values are approximate but directionally correct.
+ELO_DEFAULT = 1650
+PRE_TOURNAMENT_ELO: dict[str, float] = {
+    # Elite tier
+    "Spain":              2129,
+    "Argentina":          2115,
+    "France":             2063,
+    "England":            2042,
+    "Germany":            2020,
+    "Portugal":           1989,
+    "Colombia":           1982,
+    "Brazil":             1979,
+    "Netherlands":        1959,
+    "Norway":             1930,
+    "Austria":            1920,
+    "Croatia":            1933,
+    "Morocco":            1910,
+    "Ecuador":            1905,
+    # Strong tier
+    "Belgium":            1895,
+    "Uruguay":            1890,
+    "Mexico":             1880,
+    "Türkiye":            1875,
+    "Sweden":             1870,
+    "Senegal":            1865,
+    "United States":      1855,
+    "South Korea":        1840,
+    "Japan":              1840,
+    "Switzerland":        1835,
+    "Canada":             1820,
+    "Australia":          1800,
+    "Denmark":            1800,
+    # Mid tier
+    "Ghana":              1770,
+    "Tunisia":            1760,
+    "Egypt":              1755,
+    "Paraguay":           1750,
+    "Iran":               1745,
+    "Scotland":           1740,
+    "Algeria":            1720,
+    "Ivory Coast":        1715,
+    "Czechia":            1710,
+    "DR Congo":           1700,
+    "Saudi Arabia":       1690,
+    "Costa Rica":         1675,
+    # Lower tier
+    "South Africa":       1660,
+    "Uzbekistan":         1640,
+    "Bosnia and Herzegovina": 1635,
+    "Iraq":               1630,
+    "Cape Verde":         1625,
+    "Haiti":              1590,
+    "Jordan":             1580,
+    "New Zealand":        1575,
+    "Panama":             1570,
+    "Curaçao":            1520,
+    "Qatar":              1510,
+}
+
+# How strongly tournament results update the prior.
+# After 3 matches the tournament signal dominates; at 0 games we rely on Elo.
+# tournament_weight(played) goes 0→1 over 3 games.
+def _tournament_weight(played: int) -> float:
+    return min(played / 3.0, 1.0) * 0.6   # max 60% tournament, 40% Elo always
+
 
 def team_rating(team: dict) -> float:
-    pts = team.get("pts", 0)
-    gd  = team.get("gd", 0)
-    gf  = team.get("gf", 0)
-    return math.exp(0.10 * pts + 0.02 * gd + 0.005 * gf)
+    name   = team.get("team", "?")
+    played = team.get("played", 0)
+    pts    = team.get("pts", 0)
+    gd     = team.get("sim_gd", team.get("gd", 0))
+    gf     = team.get("sim_gf", team.get("gf", 0))
+
+    elo = PRE_TOURNAMENT_ELO.get(name, ELO_DEFAULT)
+    # Normalise Elo to same rough scale as tournament signal
+    elo_component = elo / 1800.0   # ~1.0 for an average team
+
+    tw = _tournament_weight(played)
+    tournament_signal = math.exp(0.15 * pts + 0.03 * gd + 0.005 * gf)
+
+    # Blend: pure Elo when played=0, shifting toward results as games accumulate
+    return elo_component * (1 - tw) + tournament_signal * tw
 
 
 def win_prob(a: dict, b: dict) -> float:

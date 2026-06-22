@@ -80,8 +80,13 @@ def _render_rich(top, standings, date_str):
             )
 
     console.print(
-        "\n[dim]Bracket path: R32-81(1D vs 3rd) + R32-82(1G vs 3rd) → R16-94 "
-        "| R32-83(2K vs 2L) + R32-84(1H vs 2J) → R16-93 → [bold]LA QF[/bold][/dim]\n"
+        "\n[dim]Bracket path: R32-81([cyan]1D[/cyan] vs 3rd) + R32-82([cyan]1G[/cyan] vs 3rd) → R16-94 "
+        "| R32-83([cyan]2K[/cyan] vs [cyan]2L[/cyan]) + R32-84([cyan]1H[/cyan] vs [cyan]2J[/cyan]) → R16-93 → [bold]LA QF[/bold][/dim]"
+    )
+    console.print(
+        "[dim yellow]Note: group winners (1J, 1K, 1L, 1D) exit to different QF cities. "
+        "e.g. if Argentina wins Group J they leave this bracket — only [cyan]2J[/cyan] "
+        "(the runner-up) feeds R32-84 and faces the Group H winner here.[/dim yellow]\n"
     )
 
 

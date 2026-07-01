@@ -45,6 +45,8 @@ for _ in range(N):
     thirds_by_group = {t["_group"]: t for t in all_thirds[:8]}
 
     def get_slot(pos, group):
+        if pos == "team":
+            return S.R32_ACTUAL_OPPONENTS.get(group)
         grp = group_results.get(group, [])
         if not grp:
             return None

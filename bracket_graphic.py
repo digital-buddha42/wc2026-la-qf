@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
 import simulate as S
-from bracket import BRACKET, ALL_GROUPS
+from bracket import BRACKET, ALL_GROUPS, R32_ACTUAL_OPPONENTS
 
 N = 60_000
 S.N_TRIALS = N
@@ -32,6 +32,7 @@ for _ in range(N):
     thirds.sort(key=lambda t: (-t.get("sim_pts", t["pts"]), -t.get("sim_gd", t["gd"]), -t.get("sim_gf", t["gf"])))
     tbg = {t["_group"]: t for t in thirds[:8]}
     def slot(p, g):
+        if p == "team": return R32_ACTUAL_OPPONENTS.get(g)
         G = gr.get(g, [])
         if not G: return None
         if p == "1": return G[0]

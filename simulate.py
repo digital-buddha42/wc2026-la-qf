@@ -19,7 +19,7 @@ import random
 from collections import defaultdict
 from typing import Dict, List, Tuple
 
-from bracket import BRACKET, THIRD_PLACE_POOLS, ALL_GROUPS
+from bracket import BRACKET, THIRD_PLACE_POOLS, ALL_GROUPS, R32_ACTUAL_OPPONENTS
 
 N_TRIALS = 50_000
 
@@ -210,6 +210,9 @@ def run_simulation(standings: Dict[str, List[dict]]) -> tuple[Dict[str, float], 
 
         def get_slot(pos: str, group: str) -> dict | None:
             """Resolve a bracket slot to a team dict."""
+            if pos == "team":
+                # confirmed opponent (group is actually the team name)
+                return R32_ACTUAL_OPPONENTS.get(group)
             grp = group_results.get(group, [])
             if not grp:
                 return None

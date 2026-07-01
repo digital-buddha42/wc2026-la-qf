@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
 import simulate as S
-from bracket import BRACKET, ALL_GROUPS, R32_ACTUAL_OPPONENTS
+from bracket import BRACKET, ALL_GROUPS, R32_ACTUAL_OPPONENTS, COMPLETED_RESULTS
 
 N = 60_000
 S.N_TRIALS = N
@@ -41,6 +41,10 @@ for _ in range(N):
             c = [tbg[x] for x in list(g) if x in tbg]; return S.pick_best_third(c) if c else None
     def r32(n):
         a = slot(*n["slot_a"]); b = slot(*n["slot_b"])
+        mid = n["match"].split()[0]
+        if mid in COMPLETED_RESULTS:
+            for t in (a, b):
+                if t and t["team"] == COMPLETED_RESULTS[mid]: return t
         if not a or not b: return a or b
         return S.simulate_match(a, b)
     la = BRACKET["qf_la"]; A = la["r16_a"]; B = la["r16_b"]

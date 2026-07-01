@@ -19,7 +19,7 @@ import random
 from collections import defaultdict
 from typing import Dict, List, Tuple
 
-from bracket import BRACKET, THIRD_PLACE_POOLS, ALL_GROUPS, R32_ACTUAL_OPPONENTS
+from bracket import BRACKET, THIRD_PLACE_POOLS, ALL_GROUPS, R32_ACTUAL_OPPONENTS, COMPLETED_RESULTS
 
 N_TRIALS = 50_000
 
@@ -232,6 +232,13 @@ def run_simulation(standings: Dict[str, List[dict]]) -> tuple[Dict[str, float], 
             sb = node["slot_b"]
             team_a = get_slot(sa[0], sa[1])
             team_b = get_slot(sb[0], sb[1])
+            # Force the actual winner if this match has already been played.
+            match_id = node["match"].split()[0]
+            if match_id in COMPLETED_RESULTS:
+                winner = COMPLETED_RESULTS[match_id]
+                for t in (team_a, team_b):
+                    if t and t["team"] == winner:
+                        return t
             if not team_a or not team_b:
                 return team_a or team_b
             return simulate_match(team_a, team_b)

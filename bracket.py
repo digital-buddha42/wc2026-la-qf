@@ -51,6 +51,12 @@ BRACKET = {
     }
 }
 
+# Completed knockout results — force the actual winner instead of simulating.
+# Keyed by match id (e.g. "R32-82"). Value is the winning team name.
+COMPLETED_RESULTS = {
+    "R32-82": "Belgium",   # Belgium 3-2 Senegal
+}
+
 # Confirmed R32 opponents (from actual bracket draw) with final group-stage records.
 # Overrides the generic "best 3rd-place" approximation once matchups are known.
 R32_ACTUAL_OPPONENTS = {

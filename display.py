@@ -19,18 +19,33 @@ except ImportError:
 def render(
     probs: Dict[str, float],
     standings: Dict[str, List[dict]],
+    matchup_probs: Dict[tuple, float] | None = None,
+    stage_probs: Dict[str, Dict[str, float]] | None = None,
     top_n: int = 20,
+    focus_team: str = "United States",
 ) -> None:
     date_str = datetime.now().strftime("%A, %B %-d %Y")
     top = [(team, p) for team, p in probs.items()][:top_n]
 
     if HAS_RICH:
-        _render_rich(top, standings, date_str)
+        _render_rich(top, standings, date_str, matchup_probs, focus_team, stage_probs)
     else:
-        _render_plain(top, standings, date_str)
+        _render_plain(top, standings, date_str, matchup_probs, focus_team, stage_probs)
 
 
-def _render_rich(top, standings, date_str):
+def _most_likely_opponents(matchup_probs, focus_team, top_n=5):
+    """Return [(opponent, prob), ...] sorted by matchup probability for focus_team."""
+    opponents = []
+    for (a, b), p in matchup_probs.items():
+        if a == focus_team:
+            opponents.append((b, p))
+        elif b == focus_team:
+            opponents.append((a, p))
+    opponents.sort(key=lambda x: -x[1])
+    return opponents[:top_n]
+
+
+def _render_rich(top, standings, date_str, matchup_probs=None, focus_team="United States", stage_probs=None):
     console = Console()
 
     console.print(Panel(
@@ -62,6 +77,51 @@ def _render_rich(top, standings, date_str):
 
     console.print(table)
 
+    # Most likely opponents for focus team
+    if matchup_probs and focus_team in dict(top).keys() | {t for pair in matchup_probs for t in pair}:
+        opponents = _most_likely_opponents(matchup_probs, focus_team)
+        if opponents:
+            focus_prob = dict(top).get(focus_team, 0)
+            console.print(f"\n[bold]Most Likely Opponents for [cyan]{focus_team}[/cyan] "
+                          f"(if they reach the QF — {focus_prob*100:.1f}% chance)[/bold]")
+            opp_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
+            opp_table.add_column("Opponent", style="bold white", min_width=24)
+            opp_table.add_column("Matchup %", justify="right", style="cyan")
+            opp_table.add_column("% of US QF appearances", justify="right", style="dim")
+            for opp, p in opponents:
+                cond = (p / focus_prob * 100) if focus_prob > 0 else 0
+                opp_table.add_row(opp, f"{p*100:.1f}%", f"{cond:.0f}%")
+            console.print(opp_table)
+
+    # Stage-by-stage bracket breakdown
+    if stage_probs:
+        STAGE_ORDER = [
+            "R32-83 (TOR, Jun 29)", "R32-84 (LA, Jul 2)",
+            "R16-93 (ARL, Jul 6)",
+            "R32-81 (SF, Jul 1)",  "R32-82 (SEA, Jul 2)",
+            "R16-94 (SEA, Jul 7)",
+        ]
+        SIDE_LABELS = {
+            "R32-83 (TOR, Jun 29)": "R16-93 side",
+            "R32-84 (LA, Jul 2)":   "R16-93 side",
+            "R16-93 (ARL, Jul 6)":  "R16-93 side",
+            "R32-81 (SF, Jul 1)":   "R16-94 side",
+            "R32-82 (SEA, Jul 2)":  "R16-94 side",
+            "R16-94 (SEA, Jul 7)":  "R16-94 side",
+        }
+        console.print("\n[bold]Stage-by-Stage Bracket Probabilities[/bold]")
+        for stage in STAGE_ORDER:
+            teams = list((stage_probs.get(stage) or {}).items())[:5]
+            if not teams:
+                continue
+            side = SIDE_LABELS[stage]
+            console.print(f"\n  [bold cyan]{stage}[/bold cyan]  [dim]({side})[/dim]")
+            for team, p in teams:
+                bar_len = int(p * 40)
+                bar = "█" * bar_len + "░" * (40 - bar_len)
+                color = "green" if p >= 0.4 else "yellow" if p >= 0.2 else "red"
+                console.print(f"    [white]{team:<24}[/white] [{color}]{p*100:5.1f}%  {bar}[/{color}]")
+
     # Group stage snapshot for LA-relevant groups
     console.print("\n[bold]Group Stage Snapshot (LA QF path groups: D, G, H, J, K, L)[/bold]")
     for letter in ["D", "G", "H", "J", "K", "L"]:
@@ -90,7 +150,7 @@ def _render_rich(top, standings, date_str):
     )
 
 
-def _render_plain(top, standings, date_str):
+def _render_plain(top, standings, date_str, matchup_probs=None, focus_team="United States", stage_probs=None):
     print("=" * 60)
     print("2026 FIFA World Cup — LA Quarterfinal Predictor")
     print(f"SoFi Stadium · Inglewood CA · July 10, 2026")
@@ -101,6 +161,34 @@ def _render_plain(top, standings, date_str):
     for i, (team, prob) in enumerate(top, 1):
         bar = "#" * int(prob * 100 / 3)
         print(f"{i:<4} {team:<28} {prob*100:5.1f}%  {bar}")
+
+    if matchup_probs:
+        opponents = _most_likely_opponents(matchup_probs, focus_team)
+        if opponents:
+            focus_prob = dict(top).get(focus_team, 0)
+            print(f"\nMost Likely Opponents for {focus_team} "
+                  f"(if they reach the QF — {focus_prob*100:.1f}% chance)")
+            print(f"{'Opponent':<28} {'Matchup %':>10}  {'% of US QF apps':>16}")
+            print("-" * 58)
+            for opp, p in opponents:
+                cond = (p / focus_prob * 100) if focus_prob > 0 else 0
+                print(f"{opp:<28} {p*100:>9.1f}%  {cond:>15.0f}%")
+
+    if stage_probs:
+        STAGE_ORDER = [
+            "R32-83 (TOR, Jun 29)", "R32-84 (LA, Jul 2)",
+            "R16-93 (ARL, Jul 6)",
+            "R32-81 (SF, Jul 1)",  "R32-82 (SEA, Jul 2)",
+            "R16-94 (SEA, Jul 7)",
+        ]
+        print("\nStage-by-Stage Bracket Probabilities")
+        for stage in STAGE_ORDER:
+            teams = list((stage_probs.get(stage) or {}).items())[:5]
+            if not teams:
+                continue
+            print(f"\n  {stage}")
+            for team, p in teams:
+                print(f"    {team:<26} {p*100:5.1f}%")
 
     print("\nGroup Stage Snapshot (D, G, H, J, K, L)")
     for letter in ["D", "G", "H", "J", "K", "L"]:

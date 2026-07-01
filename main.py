@@ -62,12 +62,12 @@ def main():
     import simulate as sim_module
     sim_module.N_TRIALS = n
 
-    probs = run_simulation(standings)
+    probs, matchup_probs, stage_probs = run_simulation(standings)
     elapsed = time.time() - t0
     print(f"[sim] Done in {elapsed:.1f}s. {len(probs)} teams tracked.", file=sys.stderr)
 
     # --- Display ---
-    render(probs, standings, top_n=20)
+    render(probs, standings, matchup_probs=matchup_probs, stage_probs=stage_probs, top_n=20)
 
 
 if __name__ == "__main__":
